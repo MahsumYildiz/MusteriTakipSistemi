@@ -1,0 +1,6 @@
+@MusteriTakipSistemi_HostAddress = http://localhost:5151
+
+GET {{MusteriTakipSistemi_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
