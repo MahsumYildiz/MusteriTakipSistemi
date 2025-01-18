@@ -28,6 +28,7 @@ namespace MusteriTakipSistemi.Controllers
                 c.PhoneNumber,
                 c.CallCount,
                 c.TotalStatus,
+                //Paket durumu için bir değişken tanımladık
                 PackageStatus = c.TotalStatus >= 10 ? "Paketi almıştır" : "Paketi almamıştır"
             })
             .ToList();
@@ -35,9 +36,38 @@ namespace MusteriTakipSistemi.Controllers
             return Ok(customers);
         }
 
+        [HttpGet("{id}")]
+        public IActionResult GetCustomerById(int id)
+        {
+            // İlgili müşteriyi veritabanından bul
+            var customer = _context.Customers
+                .Where(c => c.Id == id)
+                .Select(c => new
+                {
+                    c.Id,
+                    c.Name,
+                    c.PhoneNumber,
+                    c.CallCount,
+                    c.TotalStatus,
+                    PackageStatus = c.TotalStatus >= 10 ? "Paketi almıştır" : "Paketi almamıştır"
+                })
+                .FirstOrDefault();
+
+            // Eğer müşteri bulunamazsa, NotFound döndür
+            if (customer == null)
+            {
+                return NotFound(new { message = "Müşteri bulunamadı." });
+            }
+
+            // Müşteri bilgilerini döndür
+            return Ok(customer);
+        }
+
+
         [HttpPost]
         public IActionResult AddCustomer([FromBody] CustomerInsertDto customerDto)
         {
+            //İlk müşteri oluşturmada totalStatus ve CallCount 0'dan başlar
             var customer = new Customer
             {
                 Name = customerDto.Name,
@@ -54,6 +84,7 @@ namespace MusteriTakipSistemi.Controllers
         {
             var customer = _context.Customers.Where(x => x.Id == updatedCustomer.Id && x.TotalStatus < 10).FirstOrDefault();
             
+            //Müşterinin statusu 10'dan büyükse üzerinde güncelleme yapamayız
             if (customer == null)
                 return NotFound();
 
@@ -78,34 +109,39 @@ namespace MusteriTakipSistemi.Controllers
         }
 
         [HttpPost("make-call")]
-        public IActionResult MakeCall([FromQuery] int customerId, [FromQuery] int adminId, [FromBody] string notes, [FromQuery] float status)
+        public IActionResult MakeCall([FromBody] MakeCallDto makeCall)
         {
-            var customer = _context.Customers.Where(x => x.Id == customerId && x.TotalStatus < 10).FirstOrDefault();
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(ModelState); // Hatalı parametreleri döndürür.
+            }
+
+            var customer = _context.Customers.Where(x => x.Id == makeCall.CustomerId && x.TotalStatus < 10).FirstOrDefault();
 
             if (customer == null)
                 return NotFound("Müşteri yok veya paketi satın aldı");
 
             var call = new Call
             {
-                CustomerId = customerId,
-                AdminId = adminId,
+                CustomerId = makeCall.CustomerId,
+                AdminId = makeCall.AdminId,
                 CallDate = DateTime.Now,
-                Notes = notes,
-                Status = status
+                Notes = makeCall.Notes,
+                Status = makeCall.Status
             };
 
             _context.Calls.Add(call);
             customer.CallCount++;
 
-            if (status >= 10)
+            if (makeCall.Status >= 10)
             {
                 customer.TotalStatus = 10;
                 _context.SaveChanges();
                 
-                return Ok(new { message = "Çağrı başarıyla yapıldı.", customer });
+                return Ok(new { message = "Çağrı başarıyla yapıldı, Müşteri paketi aldı.", customer });
             }
 
-            customer.TotalStatus = CalculateTotalStatusAverage(customerId, call);
+            customer.TotalStatus = CalculateTotalStatusAverage(makeCall.CustomerId, call);
 
             _context.SaveChanges();
 

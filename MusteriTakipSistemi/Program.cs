@@ -21,6 +21,12 @@ namespace MusteriTakipSistemi
             builder.Services.AddEndpointsApiExplorer();
             builder.Services.AddSwaggerGen();
 
+            builder.Services.AddCors(options =>
+     options.AddDefaultPolicy(builder =>
+     builder.AllowAnyHeader().AllowAnyMethod()
+                .SetIsOriginAllowed(host => true).WithExposedHeaders("result-count")));
+
+
             var app = builder.Build();
 
             // Seed initial data for Admins, Customers, and Calls
@@ -94,6 +100,16 @@ namespace MusteriTakipSistemi
             app.UseHttpsRedirection();
             app.UseAuthorization();
             app.MapControllers();
+
+            app.UseCors(builder =>
+            {
+                builder.AllowAnyHeader()
+                       .AllowAnyMethod()
+                       .AllowCredentials()
+                       .SetIsOriginAllowed((host) => true); // T?m origin'lere izin ver
+            });
+
+
             app.Run();
         }
     }
